@@ -1,0 +1,113 @@
+---
+description: Guidelines for server actions and API integration
+---
+
+# Server Actions & API Guidelines
+
+## Server Actions
+
+### Location
+
+Place server actions in `/app/actions` directory:
+
+- [app/actions/solar-api.ts](mdc:app/actions/solar-api.ts) - Solar API integration
+
+### Creating Server Actions
+
+```typescript
+"use server";
+
+export async function myServerAction(formData: FormData) {
+  // Server-side logic
+  const data = formData.get("field");
+
+  // Validation with Zod
+  const validated = schema.parse(data);
+
+  // Return data
+  return { success: true, data: validated };
+}
+```
+
+### Using Server Actions
+
+From client components:
+
+```typescript
+"use client";
+
+import { myServerAction } from "@/app/actions/my-action";
+
+export function MyForm() {
+  const handleSubmit = async (formData: FormData) => {
+    const result = await myServerAction(formData);
+  };
+
+  return <form action={handleSubmit}>...</form>;
+}
+```
+
+## API Integration
+
+### Environment Variables
+
+- Store API keys in `.env.local` (not committed)
+- Access in server components/actions: `process.env.API_KEY`
+- Never expose API keys to client
+
+### External APIs
+
+- Google Maps API for roof detection
+- Keep API calls in server actions for security
+- Handle errors gracefully with try/catch
+
+### Data Fetching Patterns
+
+#### Server Components (Preferred)
+
+```typescript
+// app/page.tsx
+export default async function Page() {
+  const data = await fetch("...").then((r) => r.json());
+  return <div>{data}</div>;
+}
+```
+
+#### Client Components (When Needed)
+
+```typescript
+"use client";
+
+import { useState, useEffect } from "react";
+
+export function ClientComponent() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/endpoint")
+      .then((r) => r.json())
+      .then(setData);
+  }, []);
+
+  return <div>{data}</div>;
+}
+```
+
+## Error Handling
+
+- Use try/catch in server actions
+- Return typed error responses
+- Show user-friendly error messages
+- Log errors for debugging
+
+## Type Safety
+
+Define clear types for API responses:
+
+```typescript
+interface ApiResponse {
+  success: boolean;
+  data?: SomeType;
+  error?: string;
+}
+```

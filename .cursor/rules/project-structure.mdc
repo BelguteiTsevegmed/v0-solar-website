@@ -1,0 +1,55 @@
+---
+alwaysApply: true
+---
+# Solar Website Project Structure
+
+## Overview
+This is a Next.js 15 solar panel website (Otovo clone) using the App Router architecture with TypeScript and React 19.
+
+## Key Configuration Files
+- [package.json](mdc:package.json) - Dependencies and scripts (using pnpm)
+- [tsconfig.json](mdc:tsconfig.json) - TypeScript configuration with strict mode enabled
+- [components.json](mdc:components.json) - shadcn/ui configuration (New York style)
+- [next.config.mjs](mdc:next.config.mjs) - Next.js configuration
+
+## Directory Structure
+
+### `/app` - Next.js App Router
+- [app/page.tsx](mdc:app/page.tsx) - Homepage with sections (hero, stats, features, etc.)
+- [app/layout.tsx](mdc:app/layout.tsx) - Root layout with theme provider
+- [app/globals.css](mdc:app/globals.css) - Global styles and Tailwind configuration
+- **app/roof-search/** - Roof search feature pages
+- **app/roof-selection/** - Roof selection feature pages
+- **app/actions/** - Server actions (e.g., [solar-api.ts](mdc:app/actions/solar-api.ts))
+
+### `/components` - React Components
+- **components/ui/** - shadcn/ui components (button, input, etc.)
+- Component files follow kebab-case naming (e.g., `hero-section.tsx`)
+- [components/theme-provider.tsx](mdc:components/theme-provider.tsx) - Dark mode support
+- [components/google-maps-loader.tsx](mdc:components/google-maps-loader.tsx) - Google Maps integration
+
+### `/lib` - Utilities
+- [lib/utils.ts](mdc:lib/utils.ts) - Utility functions (cn helper for className merging)
+
+### `/public` - Static Assets
+- Images and SVG files (logo, placeholder images, solar panel photos)
+
+## Import Aliases
+Use the `@/` alias for all imports:
+```typescript
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+```
+
+## Package Manager
+This project uses **pnpm** - always use `pnpm install`, `pnpm add`, etc.
+
+## Key Technologies
+- Next.js 15.2.4 (App Router)
+- React 19
+- TypeScript 5 (strict mode)
+- Tailwind CSS v4
+- shadcn/ui (New York style)
+- Motion (Framer Motion) for animations
+- React Hook Form + Zod for forms
+- next-themes for dark mode

@@ -1,0 +1,111 @@
+---
+globs: *.tsx,*.css
+---
+
+# Styling Guidelines
+
+## Tailwind CSS v4
+
+### Configuration
+
+- Tailwind CSS v4 with PostCSS ([postcss.config.mjs](mdc:postcss.config.mjs))
+- Global styles in [app/globals.css](mdc:app/globals.css)
+- CSS variables enabled for theming
+- Base color: neutral
+
+### Utility-First Approach
+
+Use Tailwind utility classes for all styling:
+
+```tsx
+<div className="flex items-center justify-between p-4 bg-background">
+  <h1 className="text-2xl font-bold">Title</h1>
+</div>
+```
+
+### Class Merging
+
+Use the `cn` utility from [lib/utils.ts](mdc:lib/utils.ts) for conditional classes:
+
+```typescript
+import { cn } from "@/lib/utils";
+
+export function Component({ className, variant }: Props) {
+  return (
+    <div
+      className={cn(
+        "base-classes",
+        variant === "large" && "text-lg",
+        className
+      )}
+    >
+      Content
+    </div>
+  );
+}
+```
+
+## Theming & Dark Mode
+
+### Dark Mode Support
+
+- Uses `next-themes` package
+- Theme provider in [components/theme-provider.tsx](mdc:components/theme-provider.tsx)
+- CSS variables for colors (automatically switch in dark mode)
+
+### Using Theme Colors
+
+Use semantic color variables:
+
+```tsx
+<div className="bg-background text-foreground">
+  <p className="text-muted-foreground">Secondary text</p>
+  <div className="border border-border">Card</div>
+</div>
+```
+
+### Available Color Variables
+
+- `background` / `foreground`
+- `card` / `card-foreground`
+- `popover` / `popover-foreground`
+- `primary` / `primary-foreground`
+- `secondary` / `secondary-foreground`
+- `muted` / `muted-foreground`
+- `accent` / `accent-foreground`
+- `destructive` / `destructive-foreground`
+- `border`, `input`, `ring`
+
+## Responsive Design
+
+Use Tailwind responsive prefixes:
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+  {/* Responsive grid */}
+</div>
+```
+
+## Animations
+
+- Use `tailwindcss-animate` for Tailwind animations
+- Motion (Framer Motion) for complex animations
+- Keep animations performant (use transform/opacity)
+
+## Typography
+
+Use consistent spacing and sizing:
+
+```tsx
+<h1 className="text-4xl font-bold tracking-tight">
+<h2 className="text-3xl font-semibold">
+<h3 className="text-2xl font-semibold">
+<p className="text-base text-muted-foreground">
+```
+
+## Layout Patterns
+
+- Use `flex` and `grid` for layouts
+- Prefer `gap` over margin for spacing
+- Use consistent padding: `p-4`, `p-6`, `p-8`
+- Container widths: `max-w-7xl`, `mx-auto`

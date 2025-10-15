@@ -1,0 +1,70 @@
+---
+globs: *.ts,*.tsx
+---
+# TypeScript & React Guidelines
+
+## TypeScript Configuration
+- Strict mode is **enabled** - all code must be type-safe
+- Target: ES6
+- Use `@/` path alias for imports (configured in [tsconfig.json](mdc:tsconfig.json))
+
+## React Best Practices
+
+### Component Structure
+1. **Use functional components** with TypeScript
+2. **Server Components by default** (Next.js 15 App Router)
+3. Add `"use client"` directive only when needed (hooks, interactivity, browser APIs)
+4. Export components as named exports or default exports consistently
+
+### Example Component Structure
+```typescript
+import { ComponentProps } from "react"
+
+interface MyComponentProps {
+  title: string
+  variant?: "default" | "secondary"
+}
+
+export function MyComponent({ title, variant = "default" }: MyComponentProps) {
+  return (
+    <div>
+      <h2>{title}</h2>
+    </div>
+  )
+}
+```
+
+### Client Components
+Mark components with `"use client"` when using:
+- React hooks (useState, useEffect, etc.)
+- Event handlers (onClick, onChange, etc.)
+- Browser APIs (window, document, etc.)
+- Motion/animation libraries
+
+## TypeScript Rules
+1. **Explicit types for props** - always define interface/type for component props
+2. **Avoid `any`** - use `unknown` or proper typing
+3. **Use type inference** where obvious (function return types)
+4. **Destructure props** in function parameters
+
+## Async Components (Server Components)
+```typescript
+export default async function Page() {
+  const data = await fetchData()
+  return <div>{data}</div>
+}
+```
+
+## Forms & Validation
+Use React Hook Form with Zod schema validation:
+```typescript
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+
+const schema = z.object({
+  email: z.string().email(),
+})
+
+type FormData = z.infer<typeof schema>
+```

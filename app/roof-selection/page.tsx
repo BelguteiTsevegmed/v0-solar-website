@@ -1,38 +1,62 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { useEffect, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { fetchBuildingInsights, geocodeAddress } from "@/app/actions/solar-api"
+import { Button } from "@/components/ui/button";
+import { MultiStepLoader } from "@/components/ui/multi-step-loader";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { fetchBuildingInsights, geocodeAddress } from "@/app/actions/solar-api";
 
-interface BuildingInsights {
-  solarPotential?: {
-    maxArrayPanelsCount?: number
-    maxArrayAreaMeters2?: number
-    maxSunshineHoursPerYear?: number
-    carbonOffsetFactorKgPerMwh?: number
-  }
-  center?: {
-    latitude: number
-    longitude: number
-  }
-  boundingBox?: {
-    sw: { latitude: number; longitude: number }
-    ne: { latitude: number; longitude: number }
+declare global {
+  interface Window {
+    google: any;
   }
 }
 
-export default function RoofSelectionPage() {
-  const searchParams = useSearchParams()
-  const address = searchParams.get("address") || "Twój adres"
+interface BuildingInsights {
+  solarPotential?: {
+    maxArrayPanelsCount?: number;
+    maxArrayAreaMeters2?: number;
+    maxSunshineHoursPerYear?: number;
+    carbonOffsetFactorKgPerMwh?: number;
+  };
+  center?: {
+    latitude: number;
+    longitude: number;
+  };
+  boundingBox?: {
+    sw: { latitude: number; longitude: number };
+    ne: { latitude: number; longitude: number };
+  };
+}
 
-  const mapRef = useRef<HTMLDivElement>(null)
-  const [map, setMap] = useState<any | null>(null)
-  const [isRoofMarked, setIsRoofMarked] = useState(false)
-  const [buildingInsights, setBuildingInsights] = useState<BuildingInsights | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const polygonRef = useRef<any | null>(null)
+const SELECTION_LOADING_STATES = [
+  { text: "Zapisujemy zaznaczenie dachu" },
+  { text: "Analizujemy powierzchnię" },
+  { text: "Szacujemy ekspozycję na słońce" },
+  { text: "Przygotowujemy wstępny plan instalacji" },
+];
+
+const SELECTION_STEP_DURATION = 1100;
+
+export default function RoofSelectionPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const address = searchParams.get("address") || "Twój adres";
+
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<any | null>(null);
+  const [isRoofMarked, setIsRoofMarked] = useState(false);
+  const [buildingInsights, setBuildingInsights] =
+    useState<BuildingInsights | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const markerRef = useRef<any | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isProcessingSelection, setIsProcessingSelection] = useState(false);
 
   // Initialize Google Maps
   useEffect(() => {
@@ -42,30 +66,32 @@ export default function RoofSelectionPage() {
         const checkGoogleMaps = () => {
           return new Promise<void>((resolve) => {
             if (window.google && window.google.maps) {
-              resolve()
+              resolve();
             } else {
               const interval = setInterval(() => {
                 if (window.google && window.google.maps) {
-                  clearInterval(interval)
-                  resolve()
+                  clearInterval(interval);
+                  resolve();
                 }
-              }, 100)
+              }, 100);
             }
-          })
-        }
+          });
+        };
 
-        await checkGoogleMaps()
+        await checkGoogleMaps();
 
-        if (!mapRef.current) return
+        if (!mapRef.current) return;
 
-        let location = { lat: 52.2297, lng: 21.0122 } // Default: Warsaw, Poland
+        let location = { lat: 52.2297, lng: 21.0122 }; // Default: Warsaw, Poland
 
         if (address && address !== "Twój adres") {
-          const geocodedLocation = await geocodeAddress(address)
+          const geocodedLocation = await geocodeAddress(address);
           if (geocodedLocation) {
-            location = geocodedLocation
+            location = geocodedLocation;
           }
         }
+
+        setCurrentLocation(location);
 
         // Initialize map
         const mapInstance = new window.google.maps.Map(mapRef.current, {
@@ -77,101 +103,157 @@ export default function RoofSelectionPage() {
           mapTypeControl: true,
           streetViewControl: false,
           fullscreenControl: true,
-        })
+        });
 
-        setMap(mapInstance)
+        setMap(mapInstance);
 
-        const { data, error: apiError } = await fetchBuildingInsights(location.lat, location.lng)
+        // Add draggable marker for location confirmation
+        const marker = new window.google.maps.Marker({
+          position: location,
+          map: mapInstance,
+          draggable: true,
+          title: "Przeciągnij mnie do swojego domu",
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: "#ff6b35",
+            fillOpacity: 0.9,
+            strokeColor: "#ffffff",
+            strokeWeight: 3,
+          },
+        });
+
+        markerRef.current = marker;
+        // Enable continue as soon as a marker is placed
+        setIsRoofMarked(true);
+
+        // Handle marker drag to update building insights
+        marker.addListener("dragend", async () => {
+          const newPos = marker.getPosition();
+          if (newPos) {
+            const newLat = newPos.lat();
+            const newLng = newPos.lng();
+            setCurrentLocation({ lat: newLat, lng: newLng });
+            setIsRoofMarked(true);
+
+            // Fetch new building insights for the new location
+            const { data, error: apiError } = await fetchBuildingInsights(
+              newLat,
+              newLng
+            );
+
+            if (apiError) {
+              console.error("[v0] Solar API error:", apiError);
+            } else if (data) {
+              setBuildingInsights(data);
+            }
+          }
+        });
+
+        // Fetch initial building insights
+        const { data, error: apiError } = await fetchBuildingInsights(
+          location.lat,
+          location.lng
+        );
 
         if (apiError) {
-          console.error("[v0] Solar API error:", apiError)
+          console.error("[v0] Solar API error:", apiError);
         } else if (data) {
-          setBuildingInsights(data)
-          if (data.boundingBox) {
-            drawBuildingBoundary(data.boundingBox, mapInstance)
-          }
+          setBuildingInsights(data);
         }
 
-        setIsLoading(false)
+        setIsLoading(false);
       } catch (err) {
-        console.error("[v0] Error initializing map:", err)
-        setError("Nie udało się załadować mapy. Sprawdź konfigurację API.")
-        setIsLoading(false)
+        console.error("[v0] Error initializing map:", err);
+        setError("Nie udało się załadować mapy. Sprawdź konfigurację API.");
+        setIsLoading(false);
       }
-    }
+    };
 
-    initMap()
-  }, [address])
+    initMap();
+  }, [address]);
 
-  const drawBuildingBoundary = (boundingBox: any, mapInstance: any) => {
-    if (!mapInstance) return
+  // Removed polygon selection; we rely on the marker position only
 
-    if (polygonRef.current) {
-      polygonRef.current.setMap(null)
-    }
-
-    const bounds = [
-      { lat: boundingBox.sw.latitude, lng: boundingBox.sw.longitude },
-      { lat: boundingBox.sw.latitude, lng: boundingBox.ne.longitude },
-      { lat: boundingBox.ne.latitude, lng: boundingBox.ne.longitude },
-      { lat: boundingBox.ne.latitude, lng: boundingBox.sw.longitude },
-    ]
-
-    const polygon = new window.google.maps.Polygon({
-      paths: bounds,
-      strokeColor: "#ff6b35",
-      strokeOpacity: 0.8,
-      strokeWeight: 3,
-      fillColor: "#ff6b35",
-      fillOpacity: 0.35,
-      editable: true,
-      draggable: false,
-    })
-
-    polygon.setMap(mapInstance)
-    polygonRef.current = polygon
-
-    const center = new window.google.maps.LatLng(
-      (boundingBox.sw.latitude + boundingBox.ne.latitude) / 2,
-      (boundingBox.sw.longitude + boundingBox.ne.longitude) / 2,
-    )
-    mapInstance.setCenter(center)
-
-    window.google.maps.event.addListener(polygon.getPath(), "set_at", () => {
-      setIsRoofMarked(true)
-    })
-    window.google.maps.event.addListener(polygon.getPath(), "insert_at", () => {
-      setIsRoofMarked(true)
-    })
-
-    setIsRoofMarked(true)
-  }
+  useEffect(() => {
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleContinue = () => {
-    if (polygonRef.current) {
-      const path = polygonRef.current.getPath()
-      const coordinates = path.getArray().map((latLng: any) => ({
-        lat: latLng.lat(),
-        lng: latLng.lng(),
-      }))
-      console.log("[v0] Selected roof coordinates:", coordinates)
-      console.log("[v0] Building insights:", buildingInsights)
+    if (!isRoofMarked || isProcessingSelection || !currentLocation) {
+      return;
     }
-  }
+
+    console.log("[v0] Confirmed location:", currentLocation);
+    console.log("[v0] Building insights:", buildingInsights);
+
+    setIsProcessingSelection(true);
+
+    if (processingTimeoutRef.current) {
+      clearTimeout(processingTimeoutRef.current);
+    }
+
+    processingTimeoutRef.current = setTimeout(() => {
+      setIsProcessingSelection(false);
+      console.log("[v0] Roof selection processing complete");
+      // Pass the confirmed lat/lng to the next page
+      router.push(
+        `/roof-render?address=${encodeURIComponent(address)}&lat=${
+          currentLocation.lat
+        }&lng=${currentLocation.lng}`
+      );
+    }, SELECTION_LOADING_STATES.length * SELECTION_STEP_DURATION + 600);
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <MultiStepLoader
+        loadingStates={SELECTION_LOADING_STATES}
+        loading={isProcessingSelection}
+        duration={SELECTION_STEP_DURATION}
+        loop={false}
+      />
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-5xl mx-auto space-y-8">
           <div className="text-center space-y-4">
-            <h1 className="font-bold text-foreground text-4xl">Zaznacz swój dach</h1>
-            <p className="text-muted-foreground text-lg">
-              Twój adres: <span className="font-semibold text-foreground">{address}</span>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
+              <span className="bg-gradient-to-br from-foreground to-primary bg-clip-text text-transparent">
+                Zaznacz swój dach
+              </span>
+            </h1>
+            <p className="text-muted-foreground">
+              Twój adres:{" "}
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-sm font-medium text-foreground shadow-sm">
+                {address}
+              </span>
             </p>
           </div>
 
           <div className="w-full aspect-[16/9] bg-muted border-2 border-border rounded-lg overflow-hidden relative">
             <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+
+            <div className="absolute left-4 top-4 right-4 sm:right-auto flex flex-wrap items-center gap-2 pointer-events-none">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+                  1
+                </span>
+                <span className="whitespace-nowrap">
+                  Przeciągnij znacznik na dom
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+                  2
+                </span>
+                <span className="whitespace-nowrap">
+                  Analiza uruchomi się automatycznie
+                </span>
+              </div>
+            </div>
 
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
@@ -186,72 +268,13 @@ export default function RoofSelectionPage() {
               <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
                 <div className="text-center space-y-4 p-6">
                   <p className="text-destructive font-semibold">{error}</p>
-                  <p className="text-sm text-muted-foreground">Sprawdź ustawienia projektu w zakładce Settings</p>
+                  <p className="text-sm text-muted-foreground">
+                    Sprawdź ustawienia projektu w zakładce Settings
+                  </p>
                 </div>
               </div>
             )}
           </div>
-
-          <div className="bg-muted/50 border border-border rounded-lg p-6 space-y-3">
-            <h3 className="font-semibold text-foreground">Jak zaznaczyć dach:</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="text-primary font-bold">1.</span>
-                <span>Przesuń mapę, aby znaleźć swój budynek</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary font-bold">2.</span>
-                <span>Dostosuj pomarańczowy obszar, aby dokładnie zaznaczyć swój dach</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary font-bold">3.</span>
-                <span>Kliknij punkty na krawędziach, aby edytować kształt</span>
-              </li>
-            </ul>
-          </div>
-
-          {buildingInsights?.solarPotential && (
-            <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 space-y-3">
-              <h3 className="font-semibold text-foreground flex items-center gap-2">
-                <span className="text-2xl">☀️</span>
-                Potencjał solarny Twojego dachu
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                {buildingInsights.solarPotential.maxArrayPanelsCount && (
-                  <div>
-                    <p className="text-muted-foreground">Maksymalna liczba paneli</p>
-                    <p className="text-2xl font-bold text-primary">
-                      {buildingInsights.solarPotential.maxArrayPanelsCount}
-                    </p>
-                  </div>
-                )}
-                {buildingInsights.solarPotential.maxArrayAreaMeters2 && (
-                  <div>
-                    <p className="text-muted-foreground">Powierzchnia</p>
-                    <p className="text-2xl font-bold text-primary">
-                      {Math.round(buildingInsights.solarPotential.maxArrayAreaMeters2)} m²
-                    </p>
-                  </div>
-                )}
-                {buildingInsights.solarPotential.maxSunshineHoursPerYear && (
-                  <div>
-                    <p className="text-muted-foreground">Godziny słoneczne/rok</p>
-                    <p className="text-2xl font-bold text-primary">
-                      {Math.round(buildingInsights.solarPotential.maxSunshineHoursPerYear)}
-                    </p>
-                  </div>
-                )}
-                {buildingInsights.solarPotential.carbonOffsetFactorKgPerMwh && (
-                  <div>
-                    <p className="text-muted-foreground">Redukcja CO₂</p>
-                    <p className="text-2xl font-bold text-primary">
-                      {Math.round(buildingInsights.solarPotential.carbonOffsetFactorKgPerMwh)} kg/MWh
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
@@ -262,12 +285,17 @@ export default function RoofSelectionPage() {
             >
               Wróć
             </Button>
-            <Button size="lg" className="min-w-[200px]" disabled={!isRoofMarked} onClick={handleContinue}>
+            <Button
+              size="lg"
+              className="min-w-[200px]"
+              disabled={!isRoofMarked || isProcessingSelection}
+              onClick={handleContinue}
+            >
               Kontynuuj
             </Button>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

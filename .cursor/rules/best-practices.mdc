@@ -1,0 +1,118 @@
+---
+alwaysApply: true
+---
+
+# Best Practices & Code Quality
+
+## Code Style
+
+### General Principles
+
+- Write clean, readable, and maintainable code
+- Follow the DRY (Don't Repeat Yourself) principle
+- Keep components small and focused (single responsibility)
+- Use meaningful variable and function names
+- Add comments for complex logic only
+
+### Formatting
+
+- Use 2 spaces for indentation
+- Use double quotes for strings (TypeScript/React convention)
+- Use semicolons (enforced by Prettier/ESLint)
+- Keep lines under 100 characters when reasonable
+
+## Performance Optimization
+
+### Next.js App Router
+
+- **Default to Server Components** - only use "use client" when necessary
+- Use `loading.tsx` for loading states
+- Implement proper error boundaries with `error.tsx`
+- Use `generateMetadata` for dynamic SEO
+
+### React Optimization
+
+- Avoid unnecessary re-renders
+- Use `useMemo` and `useCallback` sparingly (only when profiling shows issues)
+- Keep state close to where it's used
+- Lazy load heavy components with `dynamic` from `next/dynamic`
+
+### Images
+
+Use Next.js Image component:
+
+```typescript
+import Image from "next/image";
+
+<Image
+  src="/image.jpg"
+  alt="Description"
+  width={500}
+  height={300}
+  priority={false}
+/>;
+```
+
+## File Organization
+
+### Imports Order
+
+1. React/Next.js imports
+2. Third-party libraries
+3. Local components (using @/ alias)
+4. Utilities and helpers
+5. Types/interfaces
+6. Styles
+
+```typescript
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { MyType } from "@/types";
+```
+
+## Git Practices
+
+- Write clear, descriptive commit messages
+- Keep commits atomic (one logical change per commit)
+- Review changes before committing
+- This project syncs with v0.app deployments
+
+## Testing & Debugging
+
+- Test components in different states (loading, error, success)
+- Test responsive design at different breakpoints
+- Use TypeScript's strict mode to catch errors early
+- Use React DevTools for debugging
+
+## Accessibility (a11y)
+
+- Use semantic HTML (`<header>`, `<main>`, `<nav>`, `<section>`)
+- Include alt text for images
+- Ensure proper heading hierarchy (h1 → h2 → h3)
+- Test keyboard navigation (Tab, Enter, Escape)
+- Use ARIA attributes when necessary
+- Maintain color contrast ratios (WCAG AA minimum)
+
+## Security
+
+- Never commit API keys or secrets
+- Use environment variables for sensitive data
+- Validate all user input (use Zod schemas)
+- Sanitize data before rendering
+- Use server actions for sensitive operations
+
+## Documentation
+
+- Document complex algorithms or business logic
+- Keep README up to date
+- Use JSDoc comments for exported functions/components
+- Add inline comments for non-obvious code
+
+## Dependencies
+
+- Keep dependencies up to date (but test updates)
+- Use exact versions in production
+- Avoid adding unnecessary dependencies
+- Use pnpm for all package management

@@ -1,0 +1,93 @@
+---
+description: Guidelines for creating and using components in this project
+---
+
+# Component Development Guidelines
+
+## Component Organization
+
+### File Naming
+
+- Use **kebab-case** for component files: `hero-section.tsx`, `multi-step-loader.tsx`
+- Match component name to file name (PascalCase in code, kebab-case for file)
+
+### Component Location
+
+- **Page components**: Place in `/app` directory structure
+- **Reusable components**: Place in `/components` directory
+- **UI primitives**: Place in `/components/ui` directory (shadcn/ui components)
+
+## shadcn/ui Components
+
+### Configuration
+
+- Style: **New York** (defined in [components.json](mdc:components.json))
+- Base color: **neutral**
+- CSS Variables: **enabled**
+- Icon library: **lucide-react**
+
+### Using shadcn/ui Components
+
+Import from `@/components/ui`:
+
+```typescript
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+```
+
+### Adding New shadcn/ui Components
+
+Use the CLI to add components:
+
+```bash
+pnpm dlx shadcn@latest add [component-name]
+```
+
+## Component Patterns
+
+### Section Components
+
+Pages are composed of section components (see [app/page.tsx](mdc:app/page.tsx)):
+
+```typescript
+export function HeroSection() {
+  return <section className="...">{/* Content */}</section>;
+}
+```
+
+### Layout Components
+
+- Use layouts for shared UI: [app/layout.tsx](mdc:app/layout.tsx)
+- Nest layouts for specific routes
+- Include metadata in page/layout components
+
+### Loading States
+
+- Create `loading.tsx` files for route segments
+- Use Suspense boundaries for data fetching
+
+## Animation Components
+
+Use Motion (Framer Motion) for animations:
+
+```typescript
+"use client";
+
+import { motion } from "motion/react";
+
+export function AnimatedComponent() {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      Content
+    </motion.div>
+  );
+}
+```
+
+## Accessibility
+
+- Use semantic HTML elements
+- Include proper ARIA labels
+- Ensure keyboard navigation works
+- Test with screen readers
+- Use shadcn/ui components which are accessible by default
